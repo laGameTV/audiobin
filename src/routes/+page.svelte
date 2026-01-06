@@ -157,7 +157,7 @@
 										{#snippet icon()}
 											<CopyIcon class="w-3.5 h-3.5" />
 										{/snippet}
-										<span class="text-xs">Link kopieren</span>
+										<span class="truncate text-xs">{file.url}</span>
 									</CopyButton>
 								</div>
 								<div>
@@ -166,7 +166,7 @@
 										{#snippet icon()}
 											<CopyIcon class="w-3.5 h-3.5" />
 										{/snippet}
-										<span class="text-xs">Command kopieren</span>
+										<span class="truncate text-xs">{`/audioplayer url ${file.url}`}</span>
 									</CopyButton>
 								</div>
 								<p class="text-xs text-muted-foreground inline-flex items-center gap-1">

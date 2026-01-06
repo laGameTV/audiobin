@@ -1,4 +1,4 @@
-import { writeFile, unlink, mkdir } from "fs/promises";
+import { writeFile, unlink, mkdir, readdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { randomBytes } from "crypto";
@@ -21,6 +21,58 @@ const storage = new Map<string, StoredFile>();
 // Ensure upload directory exists
 if (!existsSync(UPLOAD_DIR)) {
 	await mkdir(UPLOAD_DIR, { recursive: true });
+}
+
+// Parse filename to extract expiry timestamp
+function parseFilename(filename: string): { id: string; expiresAt: Date; ext: string } | null {
+	const match = filename.match(/^([a-f0-9]{16})([a-f0-9]{8})\.(.+)$/);
+	if (!match) return null;
+	
+	const [, id, expiryHex, ext] = match;
+	const expiryTimestamp = parseInt(expiryHex, 16);
+	const expiresAt = new Date(expiryTimestamp * 1000);
+	
+	return { id, expiresAt, ext };
+}
+
+// Load existing files from disk on startup
+export async function loadExistingFiles() {
+	try {
+		const files = await readdir(UPLOAD_DIR);
+		
+		for (const filename of files) {
+			const parsed = parseFilename(filename);
+			if (!parsed) continue;
+			
+			const { id, expiresAt } = parsed;
+			const path = join(UPLOAD_DIR, filename);
+			
+			// Skip if already expired
+			if (expiresAt < new Date()) {
+				try {
+					await unlink(path);
+					console.log(`Deleted expired file on startup: ${filename}`);
+				} catch {}
+				continue;
+			}
+			
+			// Restore to storage
+			const file: StoredFile = {
+				id,
+				filename: filename, // We don't have original filename, use stored one
+				path,
+				mimeType: "application/octet-stream", // Unknown after restart
+				size: 0, // Unknown after restart
+				expiresAt,
+			};
+			
+			storage.set(id, file);
+		}
+		
+		console.log(`Loaded ${storage.size} existing file(s) from disk`);
+	} catch (err) {
+		console.error("Failed to load existing files:", err);
+	}
 }
 
 // Cleanup function to delete expired files
@@ -68,15 +120,18 @@ export function stopCleanupJob() {
 }
 
 export async function storeFile(buffer: Buffer, filename: string, mimeType: string): Promise<StoredFile> {
-	const id = randomBytes(16).toString("hex");
+	const id = randomBytes(8).toString("hex");
 	const ext = filename.split(".").pop() || "bin";
-	const storedFilename = `${id}.${ext}`;
+	
+	const expiresAt = new Date();
+	expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour from now
+	
+	// Encode expiry timestamp as hex (last 8 chars before extension)
+	const expiryHex = Math.floor(expiresAt.getTime() / 1000).toString(16).padStart(8, "0");
+	const storedFilename = `${id}${expiryHex}.${ext}`;
 	const path = join(UPLOAD_DIR, storedFilename);
 
 	await writeFile(path, buffer);
-
-	const expiresAt = new Date();
-	expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour from now
 
 	const file: StoredFile = {
 		id,

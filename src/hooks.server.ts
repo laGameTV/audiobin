@@ -1,6 +1,5 @@
-import { startCleanupJob } from "$lib/server/storage";
+import { startCleanupJob, loadExistingFiles } from "$lib/server/storage";
 
-// Start cleanup job when server starts
+// Load existing files from disk and start cleanup job when server starts
+await loadExistingFiles();
 startCleanupJob();
-
-console.log("File cleanup cronjob started - runs every minute");

@@ -9,7 +9,7 @@ import { z } from "zod";
 import { YtDlp } from "ytdlp-nodejs";
 
 const downloadSchema = z.object({
-	url: z.string().url("Ungültige URL"),
+	url: z.url("Ungültige URL"),
 });
 
 const TEMP_DIR = join(process.cwd(), "temp");
@@ -39,7 +39,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 
 		// Download with ytdlp-nodejs
 		try {
-			const ytdlp = new YtDlp();
+			const ytdlp = new YtDlp({ binaryPath: "node_modules/ytdlp-nodejs/bin/yt-dlp" });
 			await ytdlp.downloadAsync(videoUrl, {
 				format: {
 					filter: "audioonly",
