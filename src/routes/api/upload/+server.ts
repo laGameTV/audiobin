@@ -16,10 +16,10 @@ export const POST: RequestHandler = async ({ request, url }) => {
 			return json({ error: "Nur Audio-Dateien erlaubt" }, { status: 400 });
 		}
 
-		// Check file size (100MB max)
-		const maxSize = 100 * 1024 * 1024;
+		// Check file size (500MB max)
+		const maxSize = 500 * 1024 * 1024;
 		if (file.size > maxSize) {
-			return json({ error: "Datei zu groß (max. 100MB)" }, { status: 400 });
+			return json({ error: "Datei zu groß (max. 500MB)" }, { status: 400 });
 		}
 
 		// Convert file to buffer
