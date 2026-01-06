@@ -34,9 +34,6 @@
 	},
 	"dependencies": {
 		"cron": "^4.4.0",
-		"crypto": "^1.0.1",
-		"fs": "^0.0.1-security",
-		"path": "^0.12.7",
 		"ytdlp-nodejs": "^2.3.5",
 		"zod": "^4.3.5"
 	}
