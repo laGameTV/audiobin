@@ -344,7 +344,7 @@
 
 		<!-- Footer -->
 		<div class="text-center mt-6 text-muted-foreground text-xs">
-			<p>Dateien werden nach 1 Stunde gelöscht</p>
+			<p>Dateien werden nach einer Stunde gelöscht</p>
 		</div>
 	</div>
 </div>
