@@ -38,14 +38,8 @@ export const POST: RequestHandler = async ({ request, url }) => {
 			const binaryPath = process.env.YTDLP_BINARY || "yt-dlp";
 			const ytdlpInfo = new YtDlp({ binaryPath });
 			const info = await ytdlpInfo.getInfoAsync(videoUrl, {
-				extraArgs: [
-					"--extractor-args",
-					"youtube:player_client=web",
-					"--no-check-certificates",
-					"--prefer-free-formats",
-					"--no-warnings"
-				]
-			});
+				additionalOptions: ["--extractor-args", "youtube:player_client=web", "--no-check-certificates", "--prefer-free-formats", "--no-warnings"],
+			} as any);
 
 			// Type guard to ensure we have a VideoInfo, not PlaylistInfo
 			if ("entries" in info) {
@@ -98,14 +92,8 @@ export const POST: RequestHandler = async ({ request, url }) => {
 					quality: 5,
 				},
 				output: outputPath,
-				extraArgs: [
-					"--extractor-args",
-					"youtube:player_client=web",
-					"--no-check-certificates",
-					"--prefer-free-formats",
-					"--no-warnings"
-				]
-			});
+				additionalOptions: ["--extractor-args", "youtube:player_client=web", "--no-check-certificates", "--prefer-free-formats", "--no-warnings"],
+			} as any);
 		} catch (execError: any) {
 			console.error(`[YOUTUBE] Download failed:`, {
 				url: videoUrl,
