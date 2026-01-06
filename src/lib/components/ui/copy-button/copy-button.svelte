@@ -14,7 +14,7 @@
 		icon,
 		animationDuration = 500,
 		variant = 'ghost',
-		size = 'icon',
+		size: sizeInput = 'icon',
 		onCopy,
 		class: className,
 		tabindex = -1,
@@ -23,9 +23,7 @@
 	}: CopyButtonProps = $props();
 
 	// this way if the user passes text then the button will be the default size
-	if (size === 'icon' && children) {
-		size = 'default';
-	}
+	const size = $derived(sizeInput === 'icon' && children ? 'default' : sizeInput);
 
 	const clipboard = new UseClipboard();
 </script>
