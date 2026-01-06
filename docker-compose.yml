@@ -1,0 +1,12 @@
+services:
+  audiobin:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./temp:/app/temp
+    environment:
+      - NODE_ENV=production
+      - YTDLP_BINARY=/usr/bin/yt-dlp
+    restart: unless-stopped

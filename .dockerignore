@@ -1,0 +1,10 @@
+node_modules
+.svelte-kit
+build
+temp
+uploads
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store

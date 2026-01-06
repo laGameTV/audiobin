@@ -18,6 +18,13 @@ export const GET: RequestHandler = async ({ params }) => {
 	try {
 		const buffer = await readFile(file.path);
 
+		console.log(`[DOWNLOAD] File accessed:`, {
+			id: file.id,
+			filename: file.filename,
+			size: file.size,
+			mimeType: file.mimeType,
+		});
+
 		return new Response(buffer, {
 			headers: {
 				"Content-Type": file.mimeType,
@@ -45,6 +52,10 @@ export const DELETE: RequestHandler = async ({ params }) => {
 	}
 
 	const success = await deleteFile(id);
+
+	if (success) {
+		console.log(`[DELETE] File deleted manually:`, { id });
+	}
 
 	if (!success) {
 		return new Response(JSON.stringify({ error: "Datei nicht gefunden oder bereits gelöscht" }), {

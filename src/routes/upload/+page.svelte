@@ -22,10 +22,44 @@
 	let loading = $state(false);
 	let progress = $state(0);
 	let expiresAt = $state<Date | null>(null);
+	let videoInfo = $state<{ title: string; duration: number; durationFormatted: string } | null>(null);
+	let fetchingInfo = $state(false);
 
 	function logAction(action: string, details: any) {
 		const timestamp = new Date().toISOString();
 		console.log(`[AudioBin ${timestamp}] ${action}:`, details);
+	}
+
+	async function fetchVideoInfo() {
+		if (!url.trim()) {
+			videoInfo = null;
+			return;
+		}
+
+		fetchingInfo = true;
+		videoInfo = null;
+
+		try {
+			const response = await fetch("/api/info", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ url: url.trim() }),
+			});
+
+			if (!response.ok) {
+				throw new Error("Konnte Video-Info nicht abrufen");
+			}
+
+			const data = await response.json();
+			videoInfo = data;
+		} catch (err) {
+			// Silently fail - no video info available
+			videoInfo = null;
+		} finally {
+			fetchingInfo = false;
+		}
 	}
 
 	function addStoredFile(file: StoredFile) {
@@ -83,6 +117,7 @@
 				xhr.send(formData);
 			});
 
+			const fullUrl = window.location.origin + response.url;
 			uploadedUrl = response.url;
 			expiresAt = new Date(response.expiresAt);
 			progress = 100;
@@ -146,6 +181,7 @@
 			}
 
 			const data = await response.json();
+			const fullUrl = window.location.origin + data.url;
 			uploadedUrl = data.url;
 			expiresAt = new Date(data.expiresAt);
 			progress = 100;
@@ -241,7 +277,7 @@
 
 					<!-- URL Input -->
 					<div>
-						<Label class="text-xs text-muted-foreground mb-2.5">Von URL laden</Label>
+						<Label class="text-xs text-muted-foreground mb-2.5">Von URL laden (YouTube, SoundCloud, etc. - Kein Spotify)</Label>
 						<div class="flex gap-2">
 							<div class="flex-1">
 								<Input
@@ -254,13 +290,28 @@
 											handleUrlDownload();
 										}
 									}}
+									onpaste={() => {
+										setTimeout(() => fetchVideoInfo(), 100);
+									}}
+									onblur={() => fetchVideoInfo()}
 								/>
 							</div>
 							<Button onclick={handleUrlDownload} disabled={loading || !url.trim()}>
 								{loading ? "Lädt..." : "Laden"}
 							</Button>
 						</div>
-						<p class="text-xs text-muted-foreground mt-1.5">Unterstützt YouTube, SoundCloud, etc.</p>
+						{#if fetchingInfo}
+							<p class="text-xs text-muted-foreground mt-1.5">Lädt URL-Informationen...</p>
+						{:else if videoInfo}
+							<p class="text-xs text-muted-foreground mt-1.5">
+								<strong>{videoInfo.title}</strong> • {videoInfo.durationFormatted}
+								{#if videoInfo.duration > 3600}
+									<span class="text-destructive"> (zu lang, max. 60 Min.)</span>
+								{/if}
+							</p>
+						{:else}
+							<p class="text-xs text-muted-foreground mt-1.5">Füge eine URL ein...</p>
+						{/if}
 					</div>
 
 					<!-- Progress -->
@@ -301,21 +352,26 @@
 					<!-- URL Display -->
 					<div>
 						<Label class="text-xs text-muted-foreground mb-1.5">Direkt-Link</Label>
-						<CopyButton text={uploadedUrl} size="sm" variant="outline" class="w-full justify-start h-8">
+						<CopyButton text={window.location.origin + uploadedUrl} size="sm" variant="outline" class="w-full justify-start h-8">
 							{#snippet icon()}
 								<CopyIcon class="w-3.5 h-3.5" />
 							{/snippet}
-							<span class="truncate text-xs">{uploadedUrl}</span>
+							<span class="truncate text-xs">{window.location.origin + uploadedUrl}</span>
 						</CopyButton>
 					</div>
 
 					<div>
 						<Label class="text-xs text-muted-foreground mb-1.5">Import Command</Label>
-						<CopyButton text={`/audioplayer url ${uploadedUrl}`} size="sm" variant="outline" class="w-full justify-start h-8">
+						<CopyButton
+							text={`/audioplayer url ${window.location.origin + uploadedUrl}`}
+							size="sm"
+							variant="outline"
+							class="w-full justify-start h-8"
+						>
 							{#snippet icon()}
 								<CopyIcon class="w-3.5 h-3.5" />
 							{/snippet}
-							<span class="truncate text-xs">{`/audioplayer url ${uploadedUrl}`}</span>
+							<span class="truncate text-xs">{`/audioplayer url ${window.location.origin + uploadedUrl}`}</span>
 						</CopyButton>
 					</div>
 

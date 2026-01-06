@@ -5,7 +5,6 @@ import { randomBytes } from "crypto";
 import { CronJob } from "cron";
 
 const UPLOAD_DIR = join(process.cwd(), "uploads");
-const CLEANUP_INTERVAL = 60 * 1000; // Check every minute
 
 interface StoredFile {
 	id: string;
@@ -27,11 +26,11 @@ if (!existsSync(UPLOAD_DIR)) {
 function parseFilename(filename: string): { id: string; expiresAt: Date; ext: string } | null {
 	const match = filename.match(/^([a-f0-9]{16})([a-f0-9]{8})\.(.+)$/);
 	if (!match) return null;
-	
+
 	const [, id, expiryHex, ext] = match;
 	const expiryTimestamp = parseInt(expiryHex, 16);
 	const expiresAt = new Date(expiryTimestamp * 1000);
-	
+
 	return { id, expiresAt, ext };
 }
 
@@ -39,14 +38,14 @@ function parseFilename(filename: string): { id: string; expiresAt: Date; ext: st
 export async function loadExistingFiles() {
 	try {
 		const files = await readdir(UPLOAD_DIR);
-		
+
 		for (const filename of files) {
 			const parsed = parseFilename(filename);
 			if (!parsed) continue;
-			
+
 			const { id, expiresAt } = parsed;
 			const path = join(UPLOAD_DIR, filename);
-			
+
 			// Skip if already expired
 			if (expiresAt < new Date()) {
 				try {
@@ -55,7 +54,7 @@ export async function loadExistingFiles() {
 				} catch {}
 				continue;
 			}
-			
+
 			// Restore to storage
 			const file: StoredFile = {
 				id,
@@ -65,10 +64,10 @@ export async function loadExistingFiles() {
 				size: 0, // Unknown after restart
 				expiresAt,
 			};
-			
+
 			storage.set(id, file);
 		}
-		
+
 		console.log(`Loaded ${storage.size} existing file(s) from disk`);
 	} catch (err) {
 		console.error("Failed to load existing files:", err);
@@ -84,9 +83,13 @@ async function cleanupExpiredFiles() {
 			try {
 				await unlink(file.path);
 				storage.delete(id);
-				console.log(`Deleted expired file: ${id}`);
+				console.log(`[CLEANUP] Deleted expired file:`, {
+					id,
+					filename: file.filename,
+					expiredAt: file.expiresAt.toISOString(),
+				});
 			} catch (err) {
-				console.error(`Failed to delete file ${id}:`, err);
+				console.error(`[CLEANUP] Failed to delete file ${id}:`, err);
 			}
 		}
 	}
@@ -122,12 +125,14 @@ export function stopCleanupJob() {
 export async function storeFile(buffer: Buffer, filename: string, mimeType: string): Promise<StoredFile> {
 	const id = randomBytes(8).toString("hex");
 	const ext = filename.split(".").pop() || "bin";
-	
+
 	const expiresAt = new Date();
 	expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour from now
-	
+
 	// Encode expiry timestamp as hex (last 8 chars before extension)
-	const expiryHex = Math.floor(expiresAt.getTime() / 1000).toString(16).padStart(8, "0");
+	const expiryHex = Math.floor(expiresAt.getTime() / 1000)
+		.toString(16)
+		.padStart(8, "0");
 	const storedFilename = `${id}${expiryHex}.${ext}`;
 	const path = join(UPLOAD_DIR, storedFilename);
 

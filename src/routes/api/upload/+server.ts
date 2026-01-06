@@ -28,12 +28,19 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		// Store file
 		const storedFile = await storeFile(buffer, file.name, file.type);
 
-		// Build public URL
-		const baseUrl = url.origin;
-		const fileUrl = `${baseUrl}/api/files/${storedFile.id}`;
+		console.log(`[UPLOAD] File uploaded successfully:`, {
+			id: storedFile.id,
+			filename: file.name,
+			size: file.size,
+			mimeType: file.type,
+			expiresAt: storedFile.expiresAt.toISOString(),
+		});
+
+		// Return path only
+		const filePath = `/api/files/${storedFile.id}`;
 
 		return json({
-			url: fileUrl,
+			url: filePath,
 			expiresAt: storedFile.expiresAt.toISOString(),
 			filename: storedFile.filename,
 			size: storedFile.size,
