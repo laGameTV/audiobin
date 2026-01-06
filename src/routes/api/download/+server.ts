@@ -35,43 +35,45 @@ export const POST: RequestHandler = async ({ request, url }) => {
 
 		// Generate temp filename
 		const tempId = randomBytes(8).toString("hex");
-	const outputPath = join(TEMP_DIR, `${tempId}.mp3`);
+		const outputPath = join(TEMP_DIR, `${tempId}.mp3`);
 
-	// Download with ytdlp-nodejs
-	try {
-		const ytdlp = new YtDlp();
-		await ytdlp.downloadAsync(videoUrl, {
-			format: {
-				filter: "audioonly",
-				type: "mp3",
-				quality: 5
-			},
-			output: outputPath
-		});
-	} catch (execError: any) {
-		console.error("ytdlp error:", execError);
-		return json(
-			{
-				error: "Download fehlgeschlagen. Bitte überprüfe die URL.",
-			},
-			{ status: 400 }
-		);
-	}
+		// Download with ytdlp-nodejs
+		try {
+			const ytdlp = new YtDlp();
+			await ytdlp.downloadAsync(videoUrl, {
+				format: {
+					filter: "audioonly",
+					type: "mp3",
+					quality: 5,
+				},
+				output: outputPath,
+			});
+		} catch (execError: any) {
+			console.error("ytdlp error:", execError);
+			return json(
+				{
+					error: "Download fehlgeschlagen. Bitte überprüfe die URL.",
+				},
+				{ status: 400 }
+			);
+		}
 
-	// Check if file was downloaded
-	if (!existsSync(outputPath)) {
-		return json({ error: "Download fehlgeschlagen" }, { status: 500 });
-	}
+		// Check if file was downloaded
+		if (!existsSync(outputPath)) {
+			return json({ error: "Download fehlgeschlagen" }, { status: 500 });
+		}
 
-	downloadedPath = outputPath;
+		downloadedPath = outputPath;
+		const fileStats = await stat(outputPath);
 		if (fileStats.size > 100 * 1024 * 1024) {
 			await unlink(downloadedPath);
 			return json({ error: "Datei zu groß (max. 100MB)" }, { status: 400 });
 		}
 
 		// Store file
-	const filename = `${tempId}.mp3`;
-	const storedFile = await storeFile(fileBuffer, filename, "audio/mpeg");
+		const filename = `${tempId}.mp3`;
+		const fileBuffer = await readFile(outputPath);
+		const storedFile = await storeFile(fileBuffer, filename, "audio/mpeg");
 
 		// Build public URL
 		const baseUrl = url.origin;
