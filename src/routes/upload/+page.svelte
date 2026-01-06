@@ -371,7 +371,7 @@
 							{#snippet icon()}
 								<CopyIcon class="w-3.5 h-3.5" />
 							{/snippet}
-							<span class="truncate text-xs">{`/audioplayer url ${window.location.origin + uploadedUrl}`}</span>
+							<span class="truncate text-xs">{`/audioplayer url "${window.location.origin + uploadedUrl}""`}</span>
 						</CopyButton>
 					</div>
 
