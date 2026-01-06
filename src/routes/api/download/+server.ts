@@ -36,7 +36,17 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		// Get video info first to check duration
 		try {
 			const binaryPath = process.env.YTDLP_BINARY || "yt-dlp";
-			const ytdlpInfo = new YtDlp({ binaryPath });
+			const ytdlpInfo = new YtDlp({ 
+				binaryPath,
+				extractors: {
+					extra: ["--extractor-args", "youtube:player_client=web"]
+				},
+				additionalFlags: [
+					"--no-check-certificates",
+					"--prefer-free-formats",
+					"--no-warnings"
+				]
+			});
 			const info = await ytdlpInfo.getInfoAsync(videoUrl);
 
 			// Type guard to ensure we have a VideoInfo, not PlaylistInfo
@@ -82,7 +92,17 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		try {
 			// Use system yt-dlp binary (set via YTDLP_BINARY env var) or fallback to yt-dlp in PATH
 			const binaryPath = process.env.YTDLP_BINARY || "yt-dlp";
-			const ytdlp = new YtDlp({ binaryPath });
+			const ytdlp = new YtDlp({ 
+				binaryPath,
+				extractors: {
+					extra: ["--extractor-args", "youtube:player_client=web"]
+				},
+				additionalFlags: [
+					"--no-check-certificates",
+					"--prefer-free-formats",
+					"--no-warnings"
+				]
+			});
 			await ytdlp.downloadAsync(videoUrl, {
 				format: {
 					filter: "audioonly",

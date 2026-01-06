@@ -22,7 +22,17 @@ export const POST = async ({ request }: { request: Request }) => {
 		// Get video info
 		try {
 			const binaryPath = process.env.YTDLP_BINARY || "yt-dlp";
-			const ytdlp = new YtDlp({ binaryPath });
+			const ytdlp = new YtDlp({ 
+				binaryPath,
+				extractors: {
+					extra: ["--extractor-args", "youtube:player_client=web"]
+				},
+				additionalFlags: [
+					"--no-check-certificates",
+					"--prefer-free-formats",
+					"--no-warnings"
+				]
+			});
 			const info = await ytdlp.getInfoAsync(videoUrl);
 
 			// Type guard to ensure we have a VideoInfo, not PlaylistInfo

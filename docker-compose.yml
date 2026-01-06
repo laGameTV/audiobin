@@ -9,4 +9,5 @@ services:
     environment:
       - NODE_ENV=production
       - YTDLP_BINARY=/usr/bin/yt-dlp
+      - BODY_SIZE_LIMIT=524288000
     restart: unless-stopped
