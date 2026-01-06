@@ -1,6 +1,9 @@
 <script lang="ts">
 	import FileDropZone from '$lib/components/ui/file-drop-zone/file-drop-zone.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
 	import { Meter } from '$lib/components/ui/meter';
 	import CopyButton from '$lib/components/ui/copy-button/copy-button.svelte';
 	import AlertCircleIcon from '@lucide/svelte/icons/alert-circle';
@@ -21,6 +24,11 @@
 	let loading = $state(false);
 	let progress = $state(0);
 	let expiresAt = $state<Date | null>(null);
+
+	function logAction(action: string, details: any) {
+		const timestamp = new Date().toISOString();
+		console.log(`[AudioBin ${timestamp}] ${action}:`, details);
+	}
 
 	function addStoredFile(file: StoredFile) {
 		if (typeof window === 'undefined') return;
@@ -43,6 +51,12 @@
 		error = '';
 		loading = true;
 		progress = 0;
+
+		logAction('FILE_UPLOAD_START', {
+			filename: file.name,
+			size: file.size,
+			type: file.type
+		});
 
 		const formData = new FormData();
 		formData.append('file', file);
@@ -77,6 +91,15 @@
 
 			const urlParts = response.url.split('/');
 			const fileId = urlParts[urlParts.length - 1];
+			
+			logAction('FILE_UPLOAD_SUCCESS', {
+				fileId,
+				filename: file.name,
+				size: file.size,
+				url: response.url,
+				expiresAt: response.expiresAt
+			});
+			
 			addStoredFile({
 				id: fileId,
 				url: response.url,
@@ -84,7 +107,12 @@
 				expiresAt: response.expiresAt
 			});
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Upload fehlgeschlagen';
+			const errorMsg = err instanceof Error ? err.message : 'Upload fehlgeschlagen';
+			logAction('FILE_UPLOAD_ERROR', {
+				filename: file.name,
+				error: errorMsg
+			});
+			error = errorMsg;
 			progress = 0;
 		} finally {
 			loading = false;
@@ -100,6 +128,10 @@
 		error = '';
 		loading = true;
 		progress = 0;
+
+		logAction('URL_DOWNLOAD_START', {
+			url: url.trim()
+		});
 
 		try {
 			const response = await fetch('/api/download', {
@@ -122,6 +154,15 @@
 
 			const urlParts = data.url.split('/');
 			const fileId = urlParts[urlParts.length - 1];
+			
+			logAction('URL_DOWNLOAD_SUCCESS', {
+				fileId,
+				sourceUrl: url.trim(),
+				filename: data.filename || 'Downloaded Audio',
+				url: data.url,
+				expiresAt: data.expiresAt
+			});
+			
 			addStoredFile({
 				id: fileId,
 				url: data.url,
@@ -129,7 +170,12 @@
 				expiresAt: data.expiresAt
 			});
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Download fehlgeschlagen';
+			const errorMsg = err instanceof Error ? err.message : 'Download fehlgeschlagen';
+			logAction('URL_DOWNLOAD_ERROR', {
+				url: url.trim(),
+				error: errorMsg
+			});
+			error = errorMsg;
 		} finally {
 			loading = false;
 		}
@@ -158,17 +204,19 @@
 
 		{#if !uploadedUrl}
 			<!-- Upload Card -->
-			<div class="bg-card rounded-lg p-6 border space-y-6">
-				<div class="flex items-center justify-between mb-2">
-					<h2 class="text-foreground text-base font-medium">Neue Datei hochladen</h2>
+			<Card>
+				<CardHeader>
+				<div class="flex items-center justify-between">
+					<CardTitle class="text-base">Neue Datei hochladen</CardTitle>
 					<Button size="sm" variant="ghost" onclick={() => goto('/')}>
 						Zurück
 					</Button>
 				</div>
-				
+				</CardHeader>
+				<CardContent class="space-y-6">
 				<!-- File Drop Zone -->
 				<div>
-					<h3 class="text-foreground text-sm font-medium mb-3">Datei hochladen</h3>
+					<Label class="mb-3 block">Datei hochladen</Label>
 					<FileDropZone
 						accept="audio/*"
 						maxFiles={1}
@@ -193,21 +241,20 @@
 						<div class="w-full border-t"></div>
 					</div>
 					<div class="relative flex justify-center text-xs">
-						<span class="px-2 bg-background text-muted-foreground">oder</span>
+						<span class="px-2 bg-background rounded-sm text-muted-foreground select-none">oder</span>
 					</div>
 				</div>
 
 				<!-- URL Input -->
 				<div>
-					<h3 class="text-foreground text-sm font-medium mb-3">Von URL laden</h3>
+					<Label class="mb-3 block">Von URL laden</Label>
 					<div class="flex gap-2">
 						<div class="flex-1">
-							<input
+							<Input
 								type="url"
 								bind:value={url}
 								disabled={loading}
-								placeholder="YouTube, SoundCloud, etc."
-								class="w-full px-3 py-2 bg-background border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+								placeholder="https://"
 								onkeydown={(e) => {
 									if (e.key === 'Enter' && !loading) {
 										handleUrlDownload();
@@ -218,13 +265,12 @@
 						<Button
 							onclick={handleUrlDownload}
 							disabled={loading || !url.trim()}
-							size="sm"
 						>
 							{loading ? 'Lädt...' : 'Laden'}
 						</Button>
 					</div>
 					<p class="text-muted-foreground text-xs mt-2">
-						Unterstützt YouTube, SoundCloud und viele weitere Plattformen
+						Unterstützt YouTube, SoundCloud, usw. (kein Spotify)
 					</p>
 				</div>
 
@@ -246,33 +292,37 @@
 						<p class="text-destructive text-xs">{error}</p>
 					</div>
 				{/if}
-			</div>
+				</CardContent>
+			</Card>
 		{:else}
 			<!-- Success Card -->
-			<div class="bg-card rounded-lg p-6 border space-y-4">
+			<Card>
+				<CardHeader>
 				<div class="flex items-center gap-2">
 					<CheckCircleIcon class="w-5 h-5 text-primary" />
-					<h2 class="text-foreground text-base font-medium">Datei bereit</h2>
+					<CardTitle class="text-base">Datei bereit</CardTitle>
 				</div>
+				</CardHeader>
+				<CardContent class="space-y-4">
 
 				<!-- URL Display -->
-				<div class="space-y-3">
+				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label class="text-muted-foreground text-xs mb-1.5 block">Direkt-Link</label>
+						<!-- <Label class="text-muted-foreground text-xs mb-1.5 block">Direkt-Link</Label> -->
 						<CopyButton text={uploadedUrl} size="sm" variant="outline" class="w-full">
 							{#snippet icon()}
 								<CopyIcon />
 							{/snippet}
-							<span class="font-mono text-sm font-light truncate">{uploadedUrl}</span>
+							<span class="truncate">Link kopieren</span>
 						</CopyButton>
 					</div>
 					<div>
-						<label class="text-muted-foreground text-xs mb-1.5 block">Discord Command</label>
-						<CopyButton text={`/audiodisc apply ${uploadedUrl}`} size="sm" variant="outline" class="w-full">
+						<!-- <Label class="text-muted-foreground text-xs mb-1.5 block">Import Command</Label> -->
+						<CopyButton text={`/audioplayer url ${uploadedUrl}`} size="sm" variant="outline" class="w-full">
 							{#snippet icon()}
 								<CopyIcon />
 							{/snippet}
-							<span class="font-mono text-sm font-light truncate">/audiodisc apply {uploadedUrl}</span>
+							<span class="truncate">Audio Disc Import URL</span>
 						</CopyButton>
 					</div>
 				</div>
@@ -289,13 +339,6 @@
 				<!-- Actions -->
 				<div class="flex gap-2">
 					<Button
-						onclick={() => window.open(uploadedUrl, '_blank')}
-						size="sm"
-						class="flex-1"
-					>
-						Öffnen
-					</Button>
-					<Button
 						onclick={() => goto('/')}
 						variant="outline"
 						size="sm"
@@ -304,7 +347,8 @@
 						Zurück zur Übersicht
 					</Button>
 				</div>
-			</div>
+				</CardContent>
+			</Card>
 		{/if}
 
 		<!-- Footer -->

@@ -1,5 +1,5 @@
 import type { RequestHandler } from "./$types";
-import { getFile } from "$lib/server/storage";
+import { getFile, deleteFile } from "$lib/server/storage";
 import { readFile } from "fs/promises";
 
 export const GET: RequestHandler = async ({ params }) => {
@@ -30,4 +30,35 @@ export const GET: RequestHandler = async ({ params }) => {
 		console.error("File read error:", err);
 		return new Response("Fehler beim Laden der Datei", { status: 500 });
 	}
+};
+
+export const DELETE: RequestHandler = async ({ params }) => {
+	const { id } = params;
+
+	if (!id) {
+		return new Response(JSON.stringify({ error: "Datei nicht gefunden" }), { 
+			status: 404,
+			headers: {
+				"Content-Type": "application/json"
+			}
+		});
+	}
+
+	const success = await deleteFile(id);
+
+	if (!success) {
+		return new Response(JSON.stringify({ error: "Datei nicht gefunden oder bereits gelöscht" }), { 
+			status: 404,
+			headers: {
+				"Content-Type": "application/json"
+			}
+		});
+	}
+
+	return new Response(JSON.stringify({ message: "Datei gelöscht" }), {
+		status: 200,
+		headers: {
+			"Content-Type": "application/json"
+		}
+	});
 };

@@ -2,6 +2,7 @@ import { writeFile, unlink, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { randomBytes } from "crypto";
+import { CronJob } from "cron";
 
 const UPLOAD_DIR = join(process.cwd(), "uploads");
 const CLEANUP_INTERVAL = 60 * 1000; // Check every minute
@@ -22,8 +23,8 @@ if (!existsSync(UPLOAD_DIR)) {
 	await mkdir(UPLOAD_DIR, { recursive: true });
 }
 
-// Cleanup expired files every minute
-setInterval(async () => {
+// Cleanup function to delete expired files
+async function cleanupExpiredFiles() {
 	const now = new Date();
 
 	for (const [id, file] of storage.entries()) {
@@ -37,7 +38,34 @@ setInterval(async () => {
 			}
 		}
 	}
-}, CLEANUP_INTERVAL);
+}
+
+let cleanupJob: CronJob | null = null;
+
+// Start cleanup cronjob
+export function startCleanupJob() {
+	if (cleanupJob) {
+		console.log("Cleanup job already running");
+		return;
+	}
+
+	// Run cleanup immediately on start
+	cleanupExpiredFiles();
+
+	// Cron pattern: every minute
+	cleanupJob = new CronJob("* * * * *", cleanupExpiredFiles);
+	cleanupJob.start();
+	console.log("File cleanup cronjob started (runs every minute)");
+}
+
+// Stop cleanup cronjob (useful for testing)
+export function stopCleanupJob() {
+	if (cleanupJob) {
+		cleanupJob.stop();
+		cleanupJob = null;
+		console.log("File cleanup cronjob stopped");
+	}
+}
 
 export async function storeFile(buffer: Buffer, filename: string, mimeType: string): Promise<StoredFile> {
 	const id = randomBytes(16).toString("hex");

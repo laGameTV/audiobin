@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import CopyButton from '$lib/components/ui/copy-button/copy-button.svelte';
 	import MusicIcon from '@lucide/svelte/icons/music';
 	import CopyIcon from '@lucide/svelte/icons/copy';
@@ -15,6 +16,11 @@
 	}
 
 	let storedFiles = $state<StoredFile[]>([]);
+
+	function logAction(action: string, details: any) {
+		const timestamp = new Date().toISOString();
+		console.log(`[AudioBin ${timestamp}] ${action}:`, details);
+	}
 
 	// LocalStorage Management
 	function getStoredFiles(): StoredFile[] {
@@ -39,9 +45,62 @@
 		storedFiles = files;
 	}
 
+	async function deleteFile(file: StoredFile) {
+		logAction('FILE_DELETE_START', {
+			fileId: file.id,
+			filename: file.filename
+		});
+		
+		try {
+			// Delete from server
+			const response = await fetch(`/api/files/${file.id}`, {
+				method: 'DELETE'
+			});
+
+			if (!response.ok) {
+				logAction('FILE_DELETE_SERVER_ERROR', {
+					fileId: file.id,
+					filename: file.filename,
+					status: response.status
+				});
+			} else {
+				logAction('FILE_DELETE_SUCCESS', {
+					fileId: file.id,
+					filename: file.filename
+				});
+			}
+		} catch (err) {
+			logAction('FILE_DELETE_ERROR', {
+				fileId: file.id,
+				filename: file.filename,
+				error: err instanceof Error ? err.message : 'Unknown error'
+			});
+		} finally {
+			// Always remove from local storage
+			removeStoredFile(file.id);
+		}
+	}
+
 	function cleanupExpiredFiles() {
 		const now = new Date();
-		const files = getStoredFiles().filter(f => {
+		const allFiles = getStoredFiles();
+		const expiredFiles = allFiles.filter(f => {
+			const expires = new Date(f.expiresAt);
+			return expires <= now;
+		});
+		
+		if (expiredFiles.length > 0) {
+			logAction('FILES_CLEANUP', {
+				expiredCount: expiredFiles.length,
+				files: expiredFiles.map(f => ({
+					id: f.id,
+					filename: f.filename,
+					expiresAt: f.expiresAt
+				}))
+			});
+		}
+		
+		const files = allFiles.filter(f => {
 			const expires = new Date(f.expiresAt);
 			return expires > now;
 		});
@@ -88,7 +147,8 @@
 		
 		<div class="space-y-2">
 			{#each storedFiles as file}
-				<div class="bg-card rounded-lg p-4 border">
+				<Card>
+					<CardContent class="p-4">
 					<div class="flex items-start justify-between gap-3">
 						<div class="flex-1 min-w-0">
 							<p class="text-foreground text-sm font-medium truncate">{file.filename}</p>
@@ -102,30 +162,25 @@
 									{/snippet}
 									<span class="text-xs truncate">Link kopieren</span>
 								</CopyButton>
-								<Button 
-									size="sm" 
-									variant="outline"
-									onclick={() => window.open(file.url, '_blank')}
-								>
-									Öffnen
-								</Button>
 							</div>
 						</div>
 						<Button 
 							size="sm" 
 							variant="ghost"
-							onclick={() => removeStoredFile(file.id)}
+							onclick={() => deleteFile(file)}
 						>
 							<TrashIcon class="w-4 h-4" />
 						</Button>
 					</div>
-				</div>
+					</CardContent>
+				</Card>
 			{/each}
 		</div>
 	</div>
 {:else}
 	<!-- Empty State -->
-	<div class="bg-card rounded-lg p-12 border text-center">
+	<Card>
+		<CardContent class="p-12 text-center">
 		<div class="flex flex-col items-center gap-4">
 			<div class="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
 				<MusicIcon class="w-8 h-8 text-muted-foreground" />
@@ -141,7 +196,8 @@
 				Datei hochladen
 			</Button>
 		</div>
-	</div>
+		</CardContent>
+	</Card>
 {/if}
 		
 		<!-- Footer -->
