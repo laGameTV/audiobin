@@ -363,7 +363,7 @@
 					<div>
 						<Label class="text-xs text-muted-foreground mb-1.5">Import Command</Label>
 						<CopyButton
-							text={`/audioplayer url ${window.location.origin + uploadedUrl}`}
+							text={`/audioplayer url "${window.location.origin + uploadedUrl}"`}
 							size="sm"
 							variant="outline"
 							class="w-full justify-start h-8"
@@ -371,7 +371,7 @@
 							{#snippet icon()}
 								<CopyIcon class="w-3.5 h-3.5" />
 							{/snippet}
-							<span class="truncate text-xs">{`/audioplayer url "${window.location.origin + uploadedUrl}""`}</span>
+							<span class="truncate text-xs">{`/audioplayer url "${window.location.origin + uploadedUrl}"`}</span>
 						</CopyButton>
 					</div>
 

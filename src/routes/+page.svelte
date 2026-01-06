@@ -162,11 +162,11 @@
 								</div>
 								<div>
 									<Label class="text-xs text-muted-foreground mb-1.5">Import Command</Label>
-									<CopyButton text={`/audioplayer url ${file.url}`} size="sm" variant="outline" class="w-full justify-start h-8">
+									<CopyButton text={`/audioplayer url "${file.url}""`} size="sm" variant="outline" class="w-full justify-start h-8">
 										{#snippet icon()}
 											<CopyIcon class="w-3.5 h-3.5" />
 										{/snippet}
-										<span class="truncate text-xs">{`/audioplayer url "${file.url}""`}</span>
+										<span class="truncate text-xs">{`/audioplayer url "${file.url}"`}</span>
 									</CopyButton>
 								</div>
 								<p class="text-xs text-muted-foreground inline-flex items-center gap-1">
