@@ -1,12 +1,11 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
-	import CopyButton from '$lib/components/ui/copy-button/copy-button.svelte';
-	import MusicIcon from '@lucide/svelte/icons/music';
-	import CopyIcon from '@lucide/svelte/icons/copy';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import TrashIcon from '@lucide/svelte/icons/trash-2';
-	import { onMount } from 'svelte';
+	import { Button } from "$lib/components/ui/button";
+	import { Label } from "$lib/components/ui/label";
+	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card";
+	import CopyButton from "$lib/components/ui/copy-button/copy-button.svelte";
+	import { MusicIcon, CopyIcon, PlusIcon, TrashIcon, ClockFadingIcon, LoaderCircleIcon } from "@lucide/svelte";
+	import { onMount } from "svelte";
+	import { goto } from "$app/navigation";
 
 	interface StoredFile {
 		id: string;
@@ -16,6 +15,7 @@
 	}
 
 	let storedFiles = $state<StoredFile[]>([]);
+	let deletingFileId = $state<string | null>(null);
 
 	function logAction(action: string, details: any) {
 		const timestamp = new Date().toISOString();
@@ -24,8 +24,8 @@
 
 	// LocalStorage Management
 	function getStoredFiles(): StoredFile[] {
-		if (typeof window === 'undefined') return [];
-		const stored = localStorage.getItem('audiobin-files');
+		if (typeof window === "undefined") return [];
+		const stored = localStorage.getItem("audiobin-files");
 		if (!stored) return [];
 		try {
 			return JSON.parse(stored);
@@ -35,72 +35,74 @@
 	}
 
 	function saveStoredFiles(files: StoredFile[]) {
-		if (typeof window === 'undefined') return;
-		localStorage.setItem('audiobin-files', JSON.stringify(files));
+		if (typeof window === "undefined") return;
+		localStorage.setItem("audiobin-files", JSON.stringify(files));
 	}
 
 	function removeStoredFile(id: string) {
-		const files = getStoredFiles().filter(f => f.id !== id);
+		const files = getStoredFiles().filter((f) => f.id !== id);
 		saveStoredFiles(files);
 		storedFiles = files;
 	}
 
 	async function deleteFile(file: StoredFile) {
-		logAction('FILE_DELETE_START', {
+		deletingFileId = file.id;
+		logAction("FILE_DELETE_START", {
 			fileId: file.id,
-			filename: file.filename
+			filename: file.filename,
 		});
-		
+
 		try {
 			// Delete from server
 			const response = await fetch(`/api/files/${file.id}`, {
-				method: 'DELETE'
+				method: "DELETE",
 			});
 
 			if (!response.ok) {
-				logAction('FILE_DELETE_SERVER_ERROR', {
+				logAction("FILE_DELETE_SERVER_ERROR", {
 					fileId: file.id,
 					filename: file.filename,
-					status: response.status
+					status: response.status,
 				});
 			} else {
-				logAction('FILE_DELETE_SUCCESS', {
+				logAction("FILE_DELETE_SUCCESS", {
 					fileId: file.id,
-					filename: file.filename
+					filename: file.filename,
 				});
 			}
 		} catch (err) {
-			logAction('FILE_DELETE_ERROR', {
+			logAction("FILE_DELETE_ERROR", {
 				fileId: file.id,
 				filename: file.filename,
-				error: err instanceof Error ? err.message : 'Unknown error'
+				error: err instanceof Error ? err.message : "Unknown error",
 			});
 		} finally {
 			// Always remove from local storage
 			removeStoredFile(file.id);
+			deletingFileId = null;
 		}
 	}
 
 	function cleanupExpiredFiles() {
 		const now = new Date();
 		const allFiles = getStoredFiles();
-		const expiredFiles = allFiles.filter(f => {
+		const expiredFiles = allFiles.filter((f) => {
 			const expires = new Date(f.expiresAt);
 			return expires <= now;
 		});
-		
+
 		if (expiredFiles.length > 0) {
-			logAction('FILES_CLEANUP', {
+			logAction("FILES_CLEANUP", {
 				expiredCount: expiredFiles.length,
-				files: expiredFiles.map(f => ({
+				files: expiredFiles.map((f) => ({
 					id: f.id,
 					filename: f.filename,
-					expiresAt: f.expiresAt
-				}))
+					expiresAt: f.expiresAt,
+				})),
 			});
 		}
-		
-		const files = allFiles.filter(f => {
+
+		const files = allFiles.filter((f) => {
 			const expires = new Date(f.expiresAt);
 			return expires > now;
 		});
@@ -116,90 +118,86 @@
 		const now = new Date();
 		const diff = expires.getTime() - now.getTime();
 		const minutes = Math.floor(diff / 60000);
-		
-		if (minutes < 1) return 'weniger als 1 Minute';
-		if (minutes === 1) return '1 Minute';
+
+		if (minutes < 1) return "weniger als einer Minute";
+		if (minutes === 1) return "einer Minute";
 		return `${minutes} Minuten`;
 	}
 </script>
 
 <div class="min-h-screen bg-background flex items-center justify-center p-4">
-	<div class="w-full max-w-2xl">
-		<!-- Header -->
-		<div class="text-center mb-8">
-			<h1 class="text-3xl font-semibold text-foreground mb-2">AudioBin</h1>
-			<p class="text-muted-foreground text-sm">
-				Teile Audio-Dateien schnell und einfach
-			</p>
-		</div>
+	<div class="w-full max-w-xl">
+		<!-- Landing Page -->
+		{#if storedFiles.length > 0}
+			<!-- Files List -->
+			<div class="space-y-3">
+				<div class="mb-4 w-full flex items-center justify-end text-foreground">
+					<Button variant="default" onclick={() => goto("/upload")}><PlusIcon size={16} /> Datei hochladen</Button>
+				</div>
 
-<!-- Landing Page -->
-{#if storedFiles.length > 0}
-	<!-- Files List -->
-	<div class="space-y-4">
-		<div class="flex items-center justify-between mb-4">
-			<h2 class="text-foreground text-lg font-medium">Deine Dateien</h2>
-			<Button size="sm" href="/upload">
-				<PlusIcon class="w-4 h-4 mr-1" />
-				Neue Datei
-			</Button>
-		</div>
-		
-		<div class="space-y-2">
-			{#each storedFiles as file}
-				<Card>
-					<CardContent class="p-4">
-					<div class="flex items-start justify-between gap-3">
-						<div class="flex-1 min-w-0">
-							<p class="text-foreground text-sm font-medium truncate">{file.filename}</p>
-							<p class="text-muted-foreground text-xs mt-1">
-								Läuft ab in {formatTimeRemaining(new Date(file.expiresAt))}
-							</p>
-							<div class="flex gap-2 mt-3">
-								<CopyButton text={file.url} size="sm" variant="outline" class="flex-1">
-									{#snippet icon()}
-										<CopyIcon />
-									{/snippet}
-									<span class="text-xs truncate">Link kopieren</span>
-								</CopyButton>
-							</div>
+				<div class="space-y-4">
+					{#each storedFiles as file}
+						<Card>
+							<CardHeader class="-mb-3">
+								<div class="flex items-center justify-between">
+									<CardTitle class="text-sm font-medium truncate pr-2">{file.filename}</CardTitle>
+									<Button size="sm" variant="ghost" disabled={deletingFileId === file.id} onclick={() => deleteFile(file)}>
+										{#if deletingFileId === file.id}
+											<LoaderCircleIcon size={16} class="animate-spin" />
+										{:else}
+											<TrashIcon size={16} />
+										{/if}
+									</Button>
+								</div>
+							</CardHeader>
+							<CardContent class="space-y-4">
+								<div>
+									<Label class="text-xs text-muted-foreground mb-1.5">Direkt-Link</Label>
+									<CopyButton text={file.url} size="sm" variant="outline" class="w-full justify-start h-8">
+										{#snippet icon()}
+											<CopyIcon class="w-3.5 h-3.5" />
+										{/snippet}
+										<span class="text-xs">Link kopieren</span>
+									</CopyButton>
+								</div>
+								<div>
+									<Label class="text-xs text-muted-foreground mb-1.5">Import Command</Label>
+									<CopyButton text={`/audioplayer url ${file.url}`} size="sm" variant="outline" class="w-full justify-start h-8">
+										{#snippet icon()}
+											<CopyIcon class="w-3.5 h-3.5" />
+										{/snippet}
+										<span class="text-xs">Command kopieren</span>
+									</CopyButton>
+								</div>
+								<p class="text-xs text-muted-foreground inline-flex items-center gap-1">
+									<ClockFadingIcon size={16} /> Läuft ab in <strong>{formatTimeRemaining(new Date(file.expiresAt))}</strong>
+								</p>
+							</CardContent>
+						</Card>
+					{/each}
+				</div>
+			</div>
+		{:else}
+			<!-- Empty State -->
+			<Card>
+				<CardContent class="p-8 text-center">
+					<div class="flex flex-col items-center gap-3">
+						<div class="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
+							<MusicIcon class="w-5 h-5 text-muted-foreground" />
 						</div>
-						<Button 
-							size="sm" 
-							variant="ghost"
-							onclick={() => deleteFile(file)}
-						>
-							<TrashIcon class="w-4 h-4" />
+						<div>
+							<h2 class="text-sm font-medium mb-1">Keine Dateien</h2>
+							<p class="text-xs text-muted-foreground">Lade deine erste Audio-Datei hoch</p>
+						</div>
+						<Button href="/upload" size="sm">
+							<PlusIcon class="w-3.5 h-3.5 mr-1.5" />
+							Datei hochladen
 						</Button>
 					</div>
-					</CardContent>
-				</Card>
-			{/each}
-		</div>
-	</div>
-{:else}
-	<!-- Empty State -->
-	<Card>
-		<CardContent class="p-12 text-center">
-		<div class="flex flex-col items-center gap-4">
-			<div class="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-				<MusicIcon class="w-8 h-8 text-muted-foreground" />
-			</div>
-			<div>
-				<h2 class="text-foreground text-lg font-medium mb-2">Keine Dateien</h2>
-				<p class="text-muted-foreground text-sm">
-					Du hast noch keine Audio-Dateien hochgeladen. Starte jetzt mit deinem ersten Upload.
-				</p>
-			</div>
-			<Button href="/upload" class="mt-2">
-				<PlusIcon class="w-4 h-4 mr-2" />
-				Datei hochladen
-			</Button>
-		</div>
-		</CardContent>
-	</Card>
-{/if}
-		
+				</CardContent>
+			</Card>
+		{/if}
+
 		<!-- Footer -->
 		<div class="text-center mt-6 text-muted-foreground text-xs">
 			<p>Dateien werden nach 1 Stunde gelöscht</p>

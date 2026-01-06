@@ -36,29 +36,29 @@ export const DELETE: RequestHandler = async ({ params }) => {
 	const { id } = params;
 
 	if (!id) {
-		return new Response(JSON.stringify({ error: "Datei nicht gefunden" }), { 
+		return new Response(JSON.stringify({ error: "Datei nicht gefunden" }), {
 			status: 404,
 			headers: {
-				"Content-Type": "application/json"
-			}
+				"Content-Type": "application/json",
+			},
 		});
 	}
 
 	const success = await deleteFile(id);
 
 	if (!success) {
-		return new Response(JSON.stringify({ error: "Datei nicht gefunden oder bereits gelöscht" }), { 
+		return new Response(JSON.stringify({ error: "Datei nicht gefunden oder bereits gelöscht" }), {
 			status: 404,
 			headers: {
-				"Content-Type": "application/json"
-			}
+				"Content-Type": "application/json",
+			},
 		});
 	}
 
 	return new Response(JSON.stringify({ message: "Datei gelöscht" }), {
 		status: 200,
 		headers: {
-			"Content-Type": "application/json"
-		}
+			"Content-Type": "application/json",
+		},
 	});
 };
