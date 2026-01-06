@@ -22,10 +22,9 @@ export const POST = async ({ request }: { request: Request }) => {
 		// Get video info
 		try {
 			const binaryPath = process.env.YTDLP_BINARY || "yt-dlp";
-			const ytdlp = new YtDlp({ binaryPath });
-			const info = await ytdlp.getInfoAsync(videoUrl, {
-				additionalOptions: ["--extractor-args", "youtube:player_client=web", "--no-check-certificates", "--prefer-free-formats", "--no-warnings"],
-			} as any);
+			const ffmpegPath = process.env.FFMPEG_PATH || "ffmpeg";
+			const ytdlp = new YtDlp({ binaryPath, ffmpegPath });
+			const info = await ytdlp.getInfoAsync(videoUrl);
 
 			// Type guard to ensure we have a VideoInfo, not PlaylistInfo
 			if ("entries" in info) {
@@ -45,7 +44,11 @@ export const POST = async ({ request }: { request: Request }) => {
 				durationFormatted: formatDuration(videoInfo.duration || 0),
 			});
 		} catch (execError: any) {
-			console.error("ytdlp info error:", execError);
+			const errorMessage = execError?.message || String(execError);
+			console.error("[YOUTUBE] Info fetch failed:", {
+				url: videoUrl,
+				error: errorMessage,
+			});
 			return json(
 				{
 					error: "Konnte Video-Informationen nicht abrufen.",
@@ -53,8 +56,9 @@ export const POST = async ({ request }: { request: Request }) => {
 				{ status: 400 }
 			);
 		}
-	} catch (err) {
-		console.error("Info error:", err);
+	} catch (err: any) {
+		const errorMessage = err?.message || String(err);
+		console.error("[YOUTUBE] Unexpected error:", errorMessage);
 		return json({ error: "Fehler beim Abrufen der Informationen" }, { status: 500 });
 	}
 };

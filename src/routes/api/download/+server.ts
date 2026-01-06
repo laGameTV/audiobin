@@ -36,10 +36,9 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		// Get video info first to check duration
 		try {
 			const binaryPath = process.env.YTDLP_BINARY || "yt-dlp";
-			const ytdlpInfo = new YtDlp({ binaryPath });
-			const info = await ytdlpInfo.getInfoAsync(videoUrl, {
-				additionalOptions: ["--extractor-args", "youtube:player_client=web", "--no-check-certificates", "--prefer-free-formats", "--no-warnings"],
-			} as any);
+			const ffmpegPath = process.env.FFMPEG_PATH || "ffmpeg";
+			const ytdlpInfo = new YtDlp({ binaryPath, ffmpegPath });
+			const info = await ytdlpInfo.getInfoAsync(videoUrl);
 
 			// Type guard to ensure we have a VideoInfo, not PlaylistInfo
 			if ("entries" in info) {
@@ -62,7 +61,11 @@ export const POST: RequestHandler = async ({ request, url }) => {
 				);
 			}
 		} catch (infoError: any) {
-			console.error("ytdlp info error:", infoError);
+			const errorMessage = infoError?.message || String(infoError);
+			console.error("[YOUTUBE] Info fetch failed:", {
+				url: videoUrl,
+				error: errorMessage,
+			});
 			return json(
 				{
 					error: "Konnte Video-Informationen nicht abrufen. Bitte überprüfe die URL.",
@@ -84,7 +87,8 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		try {
 			// Use system yt-dlp binary (set via YTDLP_BINARY env var) or fallback to yt-dlp in PATH
 			const binaryPath = process.env.YTDLP_BINARY || "yt-dlp";
-			const ytdlp = new YtDlp({ binaryPath });
+			const ffmpegPath = process.env.FFMPEG_PATH || "ffmpeg";
+			const ytdlp = new YtDlp({ binaryPath, ffmpegPath });
 			await ytdlp.downloadAsync(videoUrl, {
 				format: {
 					filter: "audioonly",
@@ -92,12 +96,19 @@ export const POST: RequestHandler = async ({ request, url }) => {
 					quality: 5,
 				},
 				output: outputPath,
-				additionalOptions: ["--extractor-args", "youtube:player_client=web", "--no-check-certificates", "--prefer-free-formats", "--no-warnings"],
-			} as any);
+				// cookiesFromBrowser: "chrome",
+				extractorArgs: {
+					youtube: ["player_client=web"],
+				},
+				noCheckCertificates: true,
+				preferFreeFormats: true,
+				noWarnings: true,
+			});
 		} catch (execError: any) {
+			const errorMessage = execError?.message || String(execError);
 			console.error(`[YOUTUBE] Download failed:`, {
 				url: videoUrl,
-				error: execError.message || execError,
+				error: errorMessage,
 			});
 			return json(
 				{
@@ -141,8 +152,9 @@ export const POST: RequestHandler = async ({ request, url }) => {
 			filename: storedFile.filename,
 			size: storedFile.size,
 		});
-	} catch (err) {
-		console.error("Download error:", err);
+	} catch (err: any) {
+		const errorMessage = err?.message || String(err);
+		console.error("[YOUTUBE] Unexpected error:", errorMessage);
 
 		// Clean up temp file if exists
 		if (downloadedPath && existsSync(downloadedPath)) {

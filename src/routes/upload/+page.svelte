@@ -24,6 +24,7 @@
 	let expiresAt = $state<Date | null>(null);
 	let videoInfo = $state<{ title: string; duration: number; durationFormatted: string } | null>(null);
 	let fetchingInfo = $state(false);
+	let infoError = $state(false);
 
 	function logAction(action: string, details: any) {
 		const timestamp = new Date().toISOString();
@@ -33,11 +34,13 @@
 	async function fetchVideoInfo() {
 		if (!url.trim()) {
 			videoInfo = null;
+			infoError = false;
 			return;
 		}
 
 		fetchingInfo = true;
 		videoInfo = null;
+		infoError = false;
 
 		try {
 			const response = await fetch("/api/info", {
@@ -55,8 +58,9 @@
 			const data = await response.json();
 			videoInfo = data;
 		} catch (err) {
-			// Silently fail - no video info available
+			// Set error state when fetching fails
 			videoInfo = null;
+			infoError = true;
 		} finally {
 			fetchingInfo = false;
 		}
@@ -296,7 +300,7 @@
 									onblur={() => fetchVideoInfo()}
 								/>
 							</div>
-							<Button onclick={handleUrlDownload} disabled={loading || !url.trim()}>
+							<Button onclick={handleUrlDownload} disabled={loading || !url.trim() || infoError}>
 								{loading ? "Lädt..." : "Laden"}
 							</Button>
 						</div>
@@ -309,11 +313,12 @@
 									<span class="text-destructive"> (zu lang, max. 60 Min.)</span>
 								{/if}
 							</p>
-						{:else}
+						{:else if infoError}
+							<p class="text-xs text-destructive mt-1.5">Ungültige URL oder Video nicht verfügbar</p>
+						{:else if url.trim()}
 							<p class="text-xs text-muted-foreground mt-1.5">Füge eine URL ein...</p>
 						{/if}
 					</div>
-
 					<!-- Progress -->
 					{#if loading && progress > 0}
 						<div class="mt-6">

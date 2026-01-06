@@ -37,5 +37,8 @@ EXPOSE 3000
 # Set environment variable for yt-dlp binary
 ENV YTDLP_BINARY=/usr/bin/yt-dlp
 
+# Set environment variable for ffmpeg binary
+ENV FFMPEG_PATH=/usr/bin/ffmpeg
+
 # Start the application
 CMD ["bun", "run", "build/index.js"]
